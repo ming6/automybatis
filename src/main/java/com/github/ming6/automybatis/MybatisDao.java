@@ -12,7 +12,7 @@ public interface MybatisDao<M, ID extends Serializable> {
 	public void deleteById(@Param("id") ID id);
 	public M selectById(@Param("id") ID id);
 	public M selectOne(@Param("*") M condition);
-	public List<M> selectList(@Param("id") M condition, @Param("_offset") int offset, @Param("_limit") int limit);
+	public List<M> selectList(@Param("*") M condition, @Param("_offset") int offset, @Param("_limit") int limit);
 	public Long selectCount();
 	public Long selectCount(@Param("*") M condition);
 	

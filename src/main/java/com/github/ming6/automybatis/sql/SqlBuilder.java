@@ -1,40 +1,36 @@
 package com.github.ming6.automybatis.sql;
 
-import org.apache.ibatis.scripting.xmltags.IfSqlNode;
-import org.apache.ibatis.scripting.xmltags.TextSqlNode;
-
 import com.github.ming6.automybatis.mapping.MappedColumn;
 import com.github.ming6.automybatis.mapping.MappedTable;
-import com.sun.javafx.binding.StringFormatter;
 
 public final class SqlBuilder {
 	
-	private static final String SQL_EXPRESSION_EQUAL = "%s = #{%s}";
+	private static final String SQL_INSERT = "insert into %s(%s) values(%s)";
+	private static final String SQL_UPDATE = "update %s set %s where %s = #{%s}";
+	
+	private static final String SCRIPT_SELECT_LIST = "<script>select %s from %s where %s</script>";
+	private static final String SCRIPT_WHERE_EXPRESSION = "<if test=\"%s != null\">%s = #{%s}</if>";
 	
 	public static final String getInsertSQL(MappedTable mappedTable){
-		StringBuilder columnsSql = new StringBuilder();
-		StringBuilder valuesSql = new StringBuilder();
+		StringBuilder columns = new StringBuilder();
+		StringBuilder values = new StringBuilder();
 		int i = 0;
 		for(MappedColumn mappedColumn : mappedTable.getColumns()){
-			columnsSql.append(mappedColumn.getColumnName());
-			valuesSql.append("#").append("{").append(mappedColumn.getFieldName()).append("}");
+			columns.append(mappedColumn.getColumnName());
+			values.append("#").append("{").append(mappedColumn.getFieldName()).append("}");
 			if(i < mappedTable.getColumns().size() - 1){
-				columnsSql.append(",");
-				valuesSql.append(",");
+				columns.append(",");
+				values.append(",");
 			}
 			i++;
 		}
-		StringBuilder sql = new StringBuilder();
-		sql.append("INSERT").append(" ").append("INTO").append(" ");
-		sql.append(mappedTable.getTableName()).append("(").append(columnsSql).append(")");
-		sql.append(" ").append("VALUES").append("(").append(valuesSql).append(")");
-		return sql.toString();
+		return String.format(SQL_INSERT, mappedTable.getTableName(), columns.toString(), values.toString());
 	}
 	
 	public static final String getUpdateSQL(MappedTable mappedTable){
 		StringBuilder set = new StringBuilder();
-		StringBuilder where = new StringBuilder();
 		int i = 0;
+		MappedColumn primaryKey = null;
 		for(MappedColumn mappedColumn : mappedTable.getColumns()){
 			set.append(mappedColumn.getColumnName()).append("=");
 			set.append("#").append("{").append(mappedColumn.getFieldName()).append("}");
@@ -42,15 +38,11 @@ public final class SqlBuilder {
 				set.append(",");
 			}
 			if(mappedColumn.getIsPk()){
-				where.append("WHERE").append(" ").append(mappedColumn.getColumnName());
-				where.append("=").append("#").append("{").append(mappedColumn.getFieldName()).append("}");
+				primaryKey = mappedColumn;
 			}
 			i++;
 		}
-		StringBuilder sql = new StringBuilder();
-		sql.append("UPDATE").append(" ").append(mappedTable.getTableName()).append(" ").append("SET");
-		sql.append(" ").append(set).append(" ").append(where);
-		return sql.toString();
+		return String.format(SQL_UPDATE, mappedTable.getTableName(), set.toString(), primaryKey.getColumnName(), primaryKey.getFieldName());
 	}
 	
 	public static final String getDeleteSQL(MappedTable mappedTable){
@@ -58,23 +50,16 @@ public final class SqlBuilder {
 	}
 	
 	public static final String getSelectListSQL(MappedTable mappedTable){
-//		StringBuilder where = new StringBuilder("WHERE").append(" ");
-//		int i = 0;
-		
+		StringBuilder where = new StringBuilder();
+		int i = 0;
 		for(MappedColumn mappedColumn : mappedTable.getColumns()){
-			String expressionEqual = String.format(SQL_EXPRESSION_EQUAL, mappedColumn.getColumnName(), mappedColumn.getFieldName());
-			String test = mappedColumn.getFieldName() + " != null";
-			IfSqlNode ifSqlNode = new IfSqlNode(new TextSqlNode(expressionEqual), test);
-			
-//			i++;
+			String expressionEqual = String.format(SCRIPT_WHERE_EXPRESSION, mappedColumn.getFieldName(), mappedColumn.getColumnName(), mappedColumn.getFieldName());
+			where.append(expressionEqual);
+			if(i < mappedTable.getColumns().size() - 2){
+				where.append(" ").append("AND").append(" ");
+			}
+			i++;
 		}
-		
-		StringBuilder sql = new StringBuilder();
-//		sql.append("<script>");
-		sql.append("SELECT").append(" ").append("*").append(" ");
-		sql.append("FROM").append(" ").append(mappedTable.getTableName()).append(" ");
-//		sql.append(where);
-//		sql.append("</script>");
-//		return sql.toString();
+		return String.format(SCRIPT_SELECT_LIST, "*", mappedTable.getTableName(), where.toString());
 	}
 }
